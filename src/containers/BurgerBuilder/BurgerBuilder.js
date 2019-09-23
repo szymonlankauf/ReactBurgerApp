@@ -29,9 +29,21 @@ class BurgerBuilder extends Component {
     componentDidMount() {
         axios.get('https://burger-server-86cef.firebaseio.com/ingredients.json')
             .then(res => {
+                const data = res.data;
+                
+                const sum = Object.keys(data).map((igKey) => {
+                    return data[igKey]*INGREDIENT_PRICES[igKey]
+                }).reduce((s, el) => {
+                    return s+el;
+                }, 0)
+                let price = this.state.totalPrice;
+                price += sum;
+                const isPurchasable = sum > 0;
                 this.setState({
-                    ingredients: res.data
-                })
+                    ingredients: data,
+                    totalPrice: price,
+                    purchasable: isPurchasable
+                });
             })
             .catch(error => {});
     }
@@ -81,7 +93,6 @@ class BurgerBuilder extends Component {
             totalPrice: newPrice,
             purchasable: purchasable
         })
-        
     }
 
     removeIngredientHandler = (type) => {
@@ -117,46 +128,22 @@ class BurgerBuilder extends Component {
     }
 
     purchaseContinueHandler = () => {
-        //alert('You continue!');
-        this.setState({
-            loading: true
-        })
-        const order = {
-            ingredients: this.state.ingredients,
-            price: this.state.totalPrice,
-            customer: {
-                name: 'Max Box',
-                address: {
-                    street: 'Teststreet 9',
-                    zipCode: '41351',
-                    country: 'Dojszland'
-                },
-                email: 'test@test.com',
-            },
-            deliveryMethod: 'fastest'
+        const queryParams = [];
+        for (var i in this.state.ingredients) {
+            queryParams.push(`${encodeURIComponent(i)}=${encodeURIComponent(this.state.ingredients[i])}`)
         }
-        axios.post('/orders.json', order)
-            .then(response => {
-                this.setState({
-                    loading: false,
-                    purchasing: false
-                })
-                return console.log(response)
-            })
-            .catch(error => {
-                this.setState({
-                    loading: false,
-                    purchasing: false
-                })
-                return console.log(error)
-            });
+        queryParams.push(`price=${encodeURIComponent(this.state.totalPrice.toFixed(2))}`);
+        this.props.history.push({
+            pathname: '/checkout',
+            search: `?${queryParams.join('&')}`
+        })
     }
 
     render () {
         const disabledInfo = {
             ...this.state.ingredients
         }
-        for(let key in disabledInfo) {
+        for(var key in disabledInfo) {
             disabledInfo[key] = disabledInfo[key] <= 0;
         }
 
